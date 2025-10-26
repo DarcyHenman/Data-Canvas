@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Data Canvas 🖥️🎨</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#f7f7f8;
+      --card:#ffffff;
+      --ink:#0c1116;
+      --muted:#5c6670;
+      --border:#e5e7eb;
+      --accent:#2563eb;
+      --ring: rgba(37,99,235,.15);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font:500 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+      display:flex; min-height:100dvh; align-items:center; justify-content:center; padding:32px;
+    }
+    .app{
+      width:min(960px,100%);
+      background:var(--card);
+      border-radius:var(--radius);
+      border:1px solid var(--border);
+      box-shadow:0 10px 28px rgba(12,17,22,.08);
+      padding:24px;
+    }
+    h2{margin:0 0 10px}
+    .section{margin-bottom:22px}
+    textarea{
+      width:100%; min-height:96px; resize:vertical;
+      background:#fcfcfd; color:var(--ink);
+      border:1px solid var(--border); border-radius:12px; padding:12px;
+    }
+    textarea:focus{outline:none; box-shadow:0 0 0 6px var(--ring); border-color:var(--accent)}
+    .tile-wrap{
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(30px,1fr)); gap:8px;
+      background:#fcfcfd; border:1px solid var(--border); border-radius:12px; padding:16px;
+      max-height:220px; overflow:auto;
+    }
+    .tile{
+      aspect-ratio:1/1; border-radius:10px; border:1px solid rgba(12,17,22,.12);
+      position:relative;
+    }
+    .tile::after{
+      content:attr(data-hex);
+      position:absolute; inset:auto auto -20px 50%; transform:translateX(-50%);
+      font-size:10px; color:var(--muted);
+    }
+    .code{
+      white-space:pre-wrap; word-break:break-word;
+      background:#fcfcfd; border:1px solid var(--border); border-radius:12px; padding:16px;
+      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      max-height:280px; overflow:auto; font-size:14px;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="section">
+      <h2>Data Canvas 🖥️🎨</h2>
+      <div id="tiles" class="tile-wrap"></div>
+    </section>
+
+    <section class="section">
+      <h2>Enter Text</h2>
+      <textarea id="text" placeholder="Type here…"></textarea>
+    </section>
+
+    <section class="section">
+      <h2>Binary</h2>
+      <div id="binary" class="code"></div>
+    </section>
+  </main>
+
+<script>
+  const textEl = document.getElementById('text');
+  const tilesEl = document.getElementById('tiles');
+  const binEl   = document.getElementById('binary');
+
+  const hex2 = b => b.toString(16).padStart(2,'0').toUpperCase();
+  const bin8 = b => b.toString(2).padStart(8,'0');
+  const hex6 = (r,g,b) => `#${hex2(r)}${hex2(g)}${hex2(b)}`;
+
+  function printableChar(ch){
+    if (ch === ' ') return '␠';
+    if (ch === '\n') return '␤';
+    if (ch === '\t') return '␉';
+    if (ch === '\r') return '␍';
+    return ch;
+  }
+
+  function render(){
+    const text = textEl.value ?? '';
+
+    // --- Build UTF-8 bytes for full text (for colour blocks) ---
+    const bytes = new TextEncoder().encode(text);
+
+    // Colour tiles: group bytes in 3s, pad with 00
+    tilesEl.innerHTML = '';
+    for (let i=0; i<bytes.length; i+=3){
+      const r = bytes[i]   ?? 0x00;
+      const g = bytes[i+1] ?? 0x00;
+      const b = bytes[i+2] ?? 0x00;
+      const hex = hex6(r,g,b);
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.hex = hex;
+      tile.style.background = hex;
+      tilesEl.appendChild(tile);
+    }
+
+    // --- Binary panel: per character → UTF-8 bytes (hex + binary) ---
+    // Iterate by Unicode code point (for...of does this correctly)
+    const lines = [];
+    for (const ch of text){
+      const cp = ch.codePointAt(0);
+      const cpHex = 'U+' + cp.toString(16).toUpperCase().padStart(4,'0');
+
+      // Encode just this character to UTF-8 to show its exact byte sequence
+      const charBytes = new TextEncoder().encode(ch);
+      const hexBytes = Array.from(charBytes).map(hex2).join(' ');
+      const binBytes = Array.from(charBytes).map(bin8).join(' ');
+
+      lines.push(`[${printableChar(ch)}] ${cpHex}  →  ${hexBytes}  →  ${binBytes}`);
+    }
+    binEl.textContent = lines.join('\n');
+  }
+
+  textEl.addEventListener('input', render);
+  render();
+</script>
+</body>
+</html>
